@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "PR Diff Plus",
+  "version": "0.1.0",
+  "description": "Better GitHub PR diff review: sticky file tree, keyboard nav, complexity scoring, smart collapse.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["*://github.com/*"],
+  "action": {
+    "default_title": "PR Diff Plus",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://github.com/*/*/pull/*"],
+      "js": ["src/lib.js", "src/content.js"],
+      "css": ["src/styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "pr-diff-plus@vaatun.com",
+      "strict_min_version": "115.0"
+    }
+  }
+}
