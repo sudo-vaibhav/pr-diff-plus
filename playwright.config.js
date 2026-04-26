@@ -7,11 +7,22 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    headless: false,
+    headless: true,
     viewport: { width: 1400, height: 900 },
     trace: 'on-first-retry'
   },
   projects: [
-    { name: 'chromium-extension' }
+    {
+      name: 'chromium-extension',
+      use: { headless: true },
+      metadata: { browser: 'chromium' }
+    }
+    // Firefox extension testing is not currently runnable via Playwright's
+    // bundled Firefox (it doesn't honor xpinstall.signatures.required=false
+    // for profile-side installs, and exposes no Marionette addon API). For
+    // Firefox compatibility we rely on `web-ext lint` (npm run lint:firefox)
+    // plus manual smoke testing via about:debugging "Load Temporary Add-on".
+    // Harness code in tests/e2e/harness.js retains the firefox path for when
+    // upstream Playwright adds proper extension support.
   ]
 });

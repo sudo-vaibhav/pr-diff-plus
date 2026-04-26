@@ -58,6 +58,36 @@ function prdp_parseStats(text) {
   };
 }
 
+// Modern GitHub renders the diffstat as `<span class="diffstat">10 <block/><block/>…</span>`
+// where the leading number is total churn and the colored blocks visualize
+// the added:deleted:neutral ratio. There are no per-file +/- text numbers in
+// the DOM. Estimate by ratio when blocks present, fall back to text parser.
+function prdp_parseDiffstat(input) {
+  var text = (input && input.text) || '';
+  var addedBlocks = (input && input.addedBlocks) || 0;
+  var deletedBlocks = (input && input.deletedBlocks) || 0;
+  var ariaLabel = (input && input.ariaLabel) || '';
+
+  // Format A: aria-label text like "10 additions, 3 deletions"
+  var fromAria = prdp_parseStats(ariaLabel);
+  if (fromAria.added || fromAria.removed) return fromAria;
+
+  // Format B: explicit "+N -N" or "N additions" text
+  var fromText = prdp_parseStats(text);
+  if (fromText.added || fromText.removed) return fromText;
+
+  // Format C: leading total + colored block ratio
+  var totalM = text.match(/^\s*(\d+)/);
+  var total = totalM ? parseInt(totalM[1], 10) : 0;
+  if (total > 0 && (addedBlocks + deletedBlocks) > 0) {
+    var added = Math.round(total * addedBlocks / (addedBlocks + deletedBlocks));
+    var removed = total - added;
+    return { added: added, removed: removed };
+  }
+
+  return { added: 0, removed: 0 };
+}
+
 function prdp_getPRKeyFromPath(pathname) {
   var m = pathname.match(PRDP_PR_PATH_RE);
   return m ? (m[1] + '/' + m[2] + '#' + m[3]) : null;
@@ -124,6 +154,7 @@ var PRDP_LIB = {
   fileWeight: prdp_fileWeight,
   complexityScore: prdp_complexityScore,
   parseStats: prdp_parseStats,
+  parseDiffstat: prdp_parseDiffstat,
   getPRKeyFromPath: prdp_getPRKeyFromPath,
   isFilesPath: prdp_isFilesPath,
   buildTree: prdp_buildTree,

@@ -3,7 +3,7 @@
   const LIB = globalThis.PRDP_LIB ?? (typeof window !== 'undefined' ? window.PRDP_LIB : undefined);
   if (!LIB) { console.error('[PRDP] lib.js not loaded'); return; }
   const {
-    isGenerated, isTest, complexityScore, parseStats,
+    isGenerated, isTest, complexityScore, parseStats, parseDiffstat,
     getPRKeyFromPath, isFilesPath,
     buildTree, flattenChains
   } = LIB;
@@ -66,8 +66,12 @@
         .find(a => /^diff-[a-f0-9]+$/.test(a.id)) || (/^diff-[a-f0-9]+$/.test(el.id) ? el : null);
       const anchor = anchorEl?.id || el.id || '';
 
+      // Path: prefer data-file-path on copilot-diff-entry (modern GitHub),
+      // then title attribute on file-info link, then anchor href, then text.
+      const wrapper = raw.tagName === 'COPILOT-DIFF-ENTRY' ? raw : el;
       const titleEl = el.querySelector('.file-info a[title], a.Link--primary[title], [data-path]');
       const path =
+        wrapper.getAttribute?.('data-file-path') ||
         titleEl?.getAttribute('title') ||
         titleEl?.getAttribute('data-path') ||
         titleEl?.textContent?.trim() ||
@@ -75,8 +79,12 @@
         `file-${out.length}`;
 
       const statsEl = el.querySelector('.diffstat, [data-testid="file-diffstat"]');
-      const statsRaw = statsEl?.getAttribute('aria-label') || statsEl?.textContent || '';
-      const { added, removed } = parseStats(statsRaw);
+      const { added, removed } = parseDiffstat({
+        text: statsEl?.textContent || '',
+        ariaLabel: statsEl?.getAttribute('aria-label') || '',
+        addedBlocks: el.querySelectorAll('.diffstat-block-added').length,
+        deletedBlocks: el.querySelectorAll('.diffstat-block-deleted').length
+      });
 
       out.push({
         el,

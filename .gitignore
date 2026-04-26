@@ -4,3 +4,5 @@ playwright-report/
 .DS_Store
 *.log
 /tmp/
+web-ext-artifacts/
+.gstack/

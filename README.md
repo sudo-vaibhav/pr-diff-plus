@@ -56,17 +56,39 @@ tests/
 
 ## Tests
 
-Pure-function tests run in milliseconds. End-to-end tests load the real extension into Playwright's bundled Chromium against a local fixture (deterministic — no GitHub markup drift, no auth needed).
-
 ```bash
 npm install
 npx playwright install chromium
-npm test         # unit (vitest)
-npm run test:e2e # e2e (playwright)
-npm run test:all # both
+npm test              # unit (vitest)         — 68 tests, ~400ms
+npm run test:e2e      # e2e (playwright)      — 29 tests on Chromium, ~16s
+npm run lint:firefox  # web-ext lint          — Firefox compatibility check
+npm run test:all      # all of the above
 ```
 
-The e2e harness rewrites `manifest.json` to match `<all_urls>` and serves the fixture via a local Node http server, then launches Chromium with `--load-extension=`.
+### Unit (`tests/unit/lib.test.js`)
+Pure-function tests against `extension/src/lib.js`. Loaded into a Node `vm` sandbox so the same code paths the browser runs are exercised. Covers: path classification (generated / test / docs), file weighting, complexity scoring, the multi-format diffstat parser (legacy aria-label, +/- text, modern block-ratio estimation), URL parsing, tree building, and chain flattening.
+
+### E2E (`tests/e2e/`)
+Two suites, both load the real extension into Playwright's bundled Chromium via `--load-extension=`:
+
+- **`extension.spec.js`** — synthetic fixture (`tests/fixtures/pr-page.html`). Deterministic, fast, exercises every UI path (sidebar, tree/flat toggle, filter, sort, keyboard shortcuts, approval, hide-approved, auto-collapse, persistence).
+- **`realgithub.spec.js`** — real GitHub PR markup snapshot (`tests/fixtures/real-github-pr.html`). Validates the extension still parses current GitHub layout (`copilot-diff-entry`, `data-file-path`, modern block-based diffstat). Re-capture when GitHub ships layout changes:
+
+  ```bash
+  npm run fixture:capture                                              # default: facebook/react#28000
+  node tests/fixtures/_capture.mjs https://github.com/owner/repo/pull/N/files  # any public PR
+  ```
+
+The harness rewrites `manifest.json` to match `<all_urls>`, serves fixtures via a local Node http server at GitHub-shaped paths (`/owner/repo/pull/N/files`), and gives each test a unique PR number so `chrome.storage.local` keys don't collide.
+
+### Firefox
+
+Playwright's bundled Firefox doesn't honor profile-side install of unsigned extensions, so the e2e suite runs Chromium-only. For Firefox we use:
+
+- **`web-ext lint`** in CI (`npm run lint:firefox`) — catches MV3 manifest issues, unsupported APIs, and unsafe patterns
+- **Manual smoke** — `about:debugging` → This Firefox → Load Temporary Add-on → pick `extension/manifest.json`
+
+The harness in `tests/e2e/harness.js` retains the Firefox launch path (unpacked install into profile) for when upstream Playwright ships first-class WebExtension support.
 
 ## Why complexity scoring matters
 

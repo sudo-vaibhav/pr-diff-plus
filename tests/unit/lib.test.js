@@ -7,6 +7,7 @@ const {
   fileWeight,
   complexityScore,
   parseStats,
+  parseDiffstat,
   getPRKeyFromPath,
   isFilesPath,
   buildTree,
@@ -105,6 +106,55 @@ describe('parseStats', () => {
 
   it('handles ascii hyphen-minus', () => {
     expect(parseStats('+10 -5').removed).toBe(5);
+  });
+});
+
+describe('parseDiffstat (multi-format)', () => {
+  it('parses aria-label format (legacy GitHub)', () => {
+    expect(parseDiffstat({ ariaLabel: '7 additions, 3 deletions' })).toEqual({ added: 7, removed: 3 });
+  });
+
+  it('parses +N -N text format (synthetic fixtures)', () => {
+    expect(parseDiffstat({ text: '+80 −20' })).toEqual({ added: 80, removed: 20 });
+  });
+
+  it('estimates from total + block ratio (modern GitHub)', () => {
+    // total 10, 3 added blocks vs 1 deleted → 7.5 → 8 added, 2 removed
+    expect(parseDiffstat({
+      text: '10',
+      addedBlocks: 3,
+      deletedBlocks: 1
+    })).toEqual({ added: 8, removed: 2 });
+  });
+
+  it('handles all-added block ratio', () => {
+    expect(parseDiffstat({
+      text: '50',
+      addedBlocks: 5,
+      deletedBlocks: 0
+    })).toEqual({ added: 50, removed: 0 });
+  });
+
+  it('handles all-deleted block ratio', () => {
+    expect(parseDiffstat({
+      text: '20',
+      addedBlocks: 0,
+      deletedBlocks: 4
+    })).toEqual({ added: 0, removed: 20 });
+  });
+
+  it('prefers aria-label over block estimation', () => {
+    expect(parseDiffstat({
+      ariaLabel: '100 additions and 50 deletions',
+      text: '150',
+      addedBlocks: 1,
+      deletedBlocks: 4
+    })).toEqual({ added: 100, removed: 50 });
+  });
+
+  it('returns zeros when nothing usable', () => {
+    expect(parseDiffstat({ text: 'foo bar', addedBlocks: 0, deletedBlocks: 0 })).toEqual({ added: 0, removed: 0 });
+    expect(parseDiffstat({})).toEqual({ added: 0, removed: 0 });
   });
 });
 
