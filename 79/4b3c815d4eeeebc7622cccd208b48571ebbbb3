@@ -1,0 +1,54 @@
+extension/manifest.json
+  0166c249a471ff74 1-26
+extension/src/lib.js
+  0166c249a471ff74 1-129
+LICENSE
+  0166c249a471ff74 1-21
+tests/fixtures/pr-page.html
+  0166c249a471ff74 1-74
+extension/popup.js
+  0166c249a471ff74 1-39
+playwright.config.js
+  0166c249a471ff74 1-17
+extension/popup.html
+  0166c249a471ff74 1-24
+extension/src/styles.css
+  0166c249a471ff74 1-360
+package.json
+  0166c249a471ff74 1-17
+.gitignore
+  0166c249a471ff74 1-6
+README.md
+  0166c249a471ff74 1-93
+tests/e2e/extension.spec.js
+  0166c249a471ff74 1-330
+vitest.config.js
+  0166c249a471ff74 1-8
+tests/unit/_loadLib.js
+  0166c249a471ff74 1-14
+extension/src/content.js
+  0166c249a471ff74 1-544
+tests/unit/lib.test.js
+  0166c249a471ff74 1-209
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "794b3c815d4eeeebc7622cccd208b48571ebbbb3",
+  "prompts": {
+    "0166c249a471ff74": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca31d008-0474-49de-8be8-736454ecac34",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "sudo-vaibhav",
+      "messages": [],
+      "total_additions": 1911,
+      "total_deletions": 0,
+      "accepted_lines": 1911,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/ade143a1db61826418634c35dece07955324311107868ea2e56bd97d72ce8da7"
+    }
+  }
+}
