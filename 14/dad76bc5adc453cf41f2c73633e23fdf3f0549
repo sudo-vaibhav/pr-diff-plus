@@ -1,0 +1,24 @@
+extension/src/content.js
+  0166c249a471ff74 51-63,66-96,98-99,105-125,129-130,134,390-409,434-438,471-473,477-479,606-609
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "14dad76bc5adc453cf41f2c73633e23fdf3f0549",
+  "prompts": {
+    "0166c249a471ff74": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca31d008-0474-49de-8be8-736454ecac34",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "sudo-vaibhav",
+      "messages": [],
+      "total_additions": 115,
+      "total_deletions": 42,
+      "accepted_lines": 138,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/411998ce688d9fdcb3cc7e7b56d223e71150194197b974ef53163690221e9aeb"
+    }
+  }
+}
