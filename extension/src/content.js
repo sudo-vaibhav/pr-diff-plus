@@ -416,8 +416,11 @@
       'button[aria-label="Viewed"], button[aria-label="Mark as viewed"], button[aria-label*="viewed" i]'
     );
     if (nativeBtn) {
-      const isOn = nativeBtn.getAttribute('aria-label')?.toLowerCase() === 'viewed' ||
-                   nativeBtn.classList?.toString().toLowerCase().includes('viewed');
+      // aria-label stays "Viewed" in both states — the action, not the state.
+      // Real state is on aria-pressed (Primer toggle convention). Class also
+      // gets a "viewed" suffix when on (MarkAsViewedButton-module__viewed__*),
+      // but aria-pressed is the standard.
+      const isOn = nativeBtn.getAttribute('aria-pressed') === 'true';
       const want = state.approved.has(f.anchor);
       if (isOn !== want) nativeBtn.click();
     }
