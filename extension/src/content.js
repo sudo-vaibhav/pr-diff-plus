@@ -48,46 +48,90 @@
     await api.storage.local.set({ settings });
   }
 
+  // Find the file-card container for a given anchor element. Handles three
+  // GitHub PR layouts:
+  //   1. Legacy: <copilot-diff-entry> wrapping a .file.js-file
+  //   2. Mid:    .file.js-file (no wrapper)
+  //   3. Modern: .PullRequestDiffsList-module__diffEntry__* (Primer React)
+  function findFileCard(el) {
+    return el.closest(
+      'copilot-diff-entry, .file.js-file, ' +
+      '[class*="PullRequestDiffsList-module__diffEntry"], ' +
+      '[class*="Diff-module__diffTargetable"]'
+    ) || el;
+  }
+
   function collectFiles() {
     const out = [];
-    const seen = new Set();
-    const blocks = [
-      ...document.querySelectorAll('copilot-diff-entry'),
-      ...document.querySelectorAll('.file.js-file')
-    ];
-    for (const raw of blocks) {
-      const el = raw.tagName === 'COPILOT-DIFF-ENTRY'
-        ? (raw.querySelector('.file.js-file') || raw)
-        : raw;
-      if (seen.has(el)) continue;
-      seen.add(el);
+    const seenCards = new Set();
+    const seenPaths = new Set();
 
-      const anchorEl = [...el.querySelectorAll('[id^="diff-"]')]
-        .find(a => /^diff-[a-f0-9]+$/.test(a.id)) || (/^diff-[a-f0-9]+$/.test(el.id) ? el : null);
-      const anchor = anchorEl?.id || el.id || '';
+    // Pick the best-fitting candidate set per layout (don't mix legacy + modern).
+    let candidates = [...document.querySelectorAll('copilot-diff-entry')];
+    if (candidates.length === 0) {
+      candidates = [...document.querySelectorAll('.file.js-file')];
+    }
+    if (candidates.length === 0) {
+      candidates = [...document.querySelectorAll('[class*="PullRequestDiffsList-module__diffEntry"]')];
+    }
+    if (candidates.length === 0) {
+      // Modern fallback: walk up from each unique data-file-path button.
+      document.querySelectorAll('[data-file-path]').forEach(b => {
+        const p = b.getAttribute('data-file-path');
+        if (!p || seenPaths.has(p)) return;
+        seenPaths.add(p);
+        const card = findFileCard(b);
+        if (card) candidates.push(card);
+      });
+    }
 
-      // Path: prefer data-file-path on copilot-diff-entry (modern GitHub),
-      // then title attribute on file-info link, then anchor href, then text.
-      const wrapper = raw.tagName === 'COPILOT-DIFF-ENTRY' ? raw : el;
-      const titleEl = el.querySelector('.file-info a[title], a.Link--primary[title], [data-path]');
+    for (const raw of candidates) {
+      const card = findFileCard(raw);
+      if (seenCards.has(card)) continue;
+      seenCards.add(card);
+
+      // Path: prefer data-file-path attribute (legacy + modern both expose it),
+      // then title attribute on file-info link, then anchor text.
+      const pathBtn = card.querySelector('[data-file-path]');
+      const titleEl = card.querySelector('.file-info a[title], a.Link--primary[title], [data-path]');
       const path =
-        wrapper.getAttribute?.('data-file-path') ||
+        raw.getAttribute?.('data-file-path') ||
+        pathBtn?.getAttribute('data-file-path') ||
         titleEl?.getAttribute('title') ||
         titleEl?.getAttribute('data-path') ||
         titleEl?.textContent?.trim() ||
-        el.querySelector('.file-info')?.textContent?.trim()?.split('\n')[0] ||
         `file-${out.length}`;
 
-      const statsEl = el.querySelector('.diffstat, [data-testid="file-diffstat"]');
+      // Anchor: legacy has [id^="diff-"]; modern keeps href="#diff-..." in
+      // file-name link. Prefer element id, fall back to href hash.
+      const anchorEl = [...card.querySelectorAll('[id^="diff-"]')]
+        .find(a => /^diff-[a-f0-9]+$/.test(a.id))
+        || (/^diff-[a-f0-9]+$/.test(card.id) ? card : null);
+      let anchor = anchorEl?.id || card.id || '';
+      if (!anchor) {
+        const hashLink = card.querySelector('a[href^="#diff-"]');
+        const m = hashLink?.getAttribute('href')?.match(/^#(diff-[a-f0-9]+)/);
+        if (m) anchor = m[1];
+      }
+
+      // Stats: try (in order) aria-label text, +/- text, then block ratios.
+      const statsEl = card.querySelector('.diffstat, [data-testid="file-diffstat"]');
+      const addedBlocks =
+        card.querySelectorAll('.diffstat-block-added').length +
+        card.querySelectorAll('[data-testid="addition diffstat"]').length;
+      const deletedBlocks =
+        card.querySelectorAll('.diffstat-block-deleted').length +
+        card.querySelectorAll('[data-testid="deletion diffstat"]').length;
+
       const { added, removed } = parseDiffstat({
         text: statsEl?.textContent || '',
         ariaLabel: statsEl?.getAttribute('aria-label') || '',
-        addedBlocks: el.querySelectorAll('.diffstat-block-added').length,
-        deletedBlocks: el.querySelectorAll('.diffstat-block-deleted').length
+        addedBlocks,
+        deletedBlocks
       });
 
       out.push({
-        el,
+        el: card,
         path,
         anchor,
         added,
@@ -343,8 +387,26 @@
     saveApproved();
     renderList();
     refreshInlineApproveButtons();
-    const native = f.el.querySelector('input[name="viewed"], input.js-reviewed-checkbox');
-    if (native && native.checked !== state.approved.has(f.anchor)) native.click();
+
+    // Mirror native "Viewed" toggle. Three layouts to consider:
+    //   1. Legacy:  <input name="viewed">                       (checkbox)
+    //   2. Mid:     <input class="js-reviewed-checkbox">        (checkbox)
+    //   3. Modern:  <button aria-label="Viewed" or "Mark as viewed">   (toggle button)
+    const nativeInput = f.el.querySelector('input[name="viewed"], input.js-reviewed-checkbox');
+    if (nativeInput) {
+      const want = state.approved.has(f.anchor);
+      if (nativeInput.checked !== want) nativeInput.click();
+      return;
+    }
+    const nativeBtn = f.el.querySelector(
+      'button[aria-label="Viewed"], button[aria-label="Mark as viewed"], button[aria-label*="viewed" i]'
+    );
+    if (nativeBtn) {
+      const isOn = nativeBtn.getAttribute('aria-label')?.toLowerCase() === 'viewed' ||
+                   nativeBtn.classList?.toString().toLowerCase().includes('viewed');
+      const want = state.approved.has(f.anchor);
+      if (isOn !== want) nativeBtn.click();
+    }
   }
   function toggleApproved() { toggleApprovedAt(state.activeIndex); }
 
@@ -369,7 +431,11 @@
 
   function injectInlineApproveButtons() {
     state.files.forEach((f, idx) => {
-      const header = f.el.querySelector('.file-header, .file-info');
+      const header =
+        f.el.querySelector('.file-header, .file-info') ||
+        f.el.querySelector('[class*="DiffFileHeader-module__diff-file-header"]') ||
+        f.el.querySelector('[class*="DiffFileHeader"]') ||
+        f.el.querySelector('[class*="Diff-module__diffHeaderWrapper"]');
       if (!header || header.querySelector('.prdp-inline-approve')) return;
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -402,11 +468,15 @@
   function autoCollapseGenerated() {
     for (const f of state.files) {
       if (!f.generated) continue;
-      const body = f.el.querySelector('.js-file-content, .Box-body');
+      const body =
+        f.el.querySelector('.js-file-content, .Box-body') ||
+        f.el.querySelector('[class*="DiffContent"], [class*="diff-table"]');
       if (body && !body.hasAttribute('data-prdp-collapsed')) {
         body.setAttribute('data-prdp-collapsed', '1');
         body.style.display = 'none';
-        const header = f.el.querySelector('.file-header, .file-info');
+        const header =
+          f.el.querySelector('.file-header, .file-info') ||
+          f.el.querySelector('[class*="DiffFileHeader"]');
         if (header && !header.querySelector('.prdp-genbadge')) {
           const tag = document.createElement('span');
           tag.className = 'prdp-genbadge';
@@ -531,9 +601,12 @@
       ensureRoot();
       syncControlsToState();
       autoCollapseGenerated();
-      injectInlineApproveButtons();
       renderList();
     }
+    // Always run inline-button injection — GitHub lazy-renders diff headers
+    // on scroll, so new headers may need buttons even when file count is
+    // unchanged. injectInlineApproveButtons dedupes via class check.
+    injectInlineApproveButtons();
   }, 400);
 
   const obs = new MutationObserver(() => {
