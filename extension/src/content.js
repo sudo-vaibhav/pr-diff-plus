@@ -1,6 +1,6 @@
 (() => {
   const api = globalThis.browser ?? globalThis.chrome;
-  const LIB = globalThis.PRDP_LIB;
+  const LIB = globalThis.PRDP_LIB ?? (typeof window !== 'undefined' ? window.PRDP_LIB : undefined);
   if (!LIB) { console.error('[PRDP] lib.js not loaded'); return; }
   const {
     isGenerated, isTest, complexityScore, parseStats,

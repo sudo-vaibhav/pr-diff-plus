@@ -7,8 +7,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const LIB_PATH = join(__dirname, '..', '..', 'extension', 'src', 'lib.js');
 
 const code = readFileSync(LIB_PATH, 'utf8');
-const sandbox = { globalThis: {} };
+const sandbox = { window: {}, globalThis: undefined, Map };
+sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(code, sandbox);
 
-export default sandbox.globalThis.PRDP_LIB;
+export default sandbox.PRDP_LIB ?? sandbox.globalThis.PRDP_LIB;
