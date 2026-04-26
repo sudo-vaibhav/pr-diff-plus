@@ -90,32 +90,45 @@
       if (seenCards.has(card)) continue;
       seenCards.add(card);
 
-      // Path: prefer data-file-path attribute (legacy + modern both expose it),
-      // then title attribute on file-info link, then anchor text.
+      // Path resolution priority:
+      //   1. data-file-path on wrapper or any inner button (legacy + modern w/ rendered header)
+      //   2. title attr on legacy file-info link
+      //   3. textContent of the modern <a href="#diff-..."><code>...</code></a> link,
+      //      stripped of LTR/RTL invisible marks (U+200E / U+200F) GitHub wraps it in
       const pathBtn = card.querySelector('[data-file-path]');
       const titleEl = card.querySelector('.file-info a[title], a.Link--primary[title], [data-path]');
+      const hashLink = card.querySelector('a[href^="#diff-"]');
+      const hashLinkText = hashLink?.textContent?.replace(/[\u200E\u200F]/g, '').trim();
       const path =
         raw.getAttribute?.('data-file-path') ||
         pathBtn?.getAttribute('data-file-path') ||
         titleEl?.getAttribute('title') ||
         titleEl?.getAttribute('data-path') ||
         titleEl?.textContent?.trim() ||
+        hashLinkText ||
         `file-${out.length}`;
 
-      // Anchor: legacy has [id^="diff-"]; modern keeps href="#diff-..." in
-      // file-name link. Prefer element id, fall back to href hash.
+      // Anchor: legacy [id^="diff-"], else hash from href
       const anchorEl = [...card.querySelectorAll('[id^="diff-"]')]
         .find(a => /^diff-[a-f0-9]+$/.test(a.id))
         || (/^diff-[a-f0-9]+$/.test(card.id) ? card : null);
       let anchor = anchorEl?.id || card.id || '';
       if (!anchor) {
-        const hashLink = card.querySelector('a[href^="#diff-"]');
         const m = hashLink?.getAttribute('href')?.match(/^#(diff-[a-f0-9]+)/);
         if (m) anchor = m[1];
       }
 
-      // Stats: try (in order) aria-label text, +/- text, then block ratios.
-      const statsEl = card.querySelector('.diffstat, [data-testid="file-diffstat"]');
+      // Stats sources, in priority order:
+      //   1. Modern: .sr-only text "Lines changed: N additions & M deletions"
+      //   2. Modern: visible +N / -N spans (fgColor-success/danger + text-bold)
+      //   3. Legacy: .diffstat aria-label or text content
+      //   4. Block-ratio fallback (modern unstyled or partial render)
+      const srOnlyText = [...card.querySelectorAll('.sr-only')]
+        .map(e => e.textContent || '')
+        .find(t => /lines changed/i.test(t)) || '';
+      const plusText  = card.querySelector('[class*="fgColor-success"][class*="text-bold"]')?.textContent || '';
+      const minusText = card.querySelector('[class*="fgColor-danger"][class*="text-bold"]')?.textContent || '';
+      const legacyStats = card.querySelector('.diffstat, [data-testid="file-diffstat"]');
       const addedBlocks =
         card.querySelectorAll('.diffstat-block-added').length +
         card.querySelectorAll('[data-testid="addition diffstat"]').length;
@@ -123,9 +136,10 @@
         card.querySelectorAll('.diffstat-block-deleted').length +
         card.querySelectorAll('[data-testid="deletion diffstat"]').length;
 
+      const spansText = (plusText || minusText) ? `${plusText} ${minusText}`.trim() : '';
       const { added, removed } = parseDiffstat({
-        text: statsEl?.textContent || '',
-        ariaLabel: statsEl?.getAttribute('aria-label') || '',
+        text: srOnlyText || spansText || legacyStats?.textContent || '',
+        ariaLabel: legacyStats?.getAttribute('aria-label') || '',
         addedBlocks,
         deletedBlocks
       });

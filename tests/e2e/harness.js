@@ -18,7 +18,8 @@ const SRC_EXT = join(REPO, 'extension');
 
 export const FIXTURES = {
   synthetic: join(REPO, 'tests', 'fixtures', 'pr-page.html'),
-  realGithub: join(REPO, 'tests', 'fixtures', 'real-github-pr.html')
+  realGithub: join(REPO, 'tests', 'fixtures', 'real-github-pr.html'),
+  realGithubModern: join(REPO, 'tests', 'fixtures', 'real-github-pr-modern.html')
 };
 
 function buildTestExtensionDir() {

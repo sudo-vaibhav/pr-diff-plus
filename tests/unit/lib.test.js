@@ -156,6 +156,17 @@ describe('parseDiffstat (multi-format)', () => {
     expect(parseDiffstat({ text: 'foo bar', addedBlocks: 0, deletedBlocks: 0 })).toEqual({ added: 0, removed: 0 });
     expect(parseDiffstat({})).toEqual({ added: 0, removed: 0 });
   });
+
+  it('parses modern "Lines changed: N addition & M deletions" sr-only text', () => {
+    expect(parseDiffstat({ text: 'Lines changed: 1 addition & 1 deletion' })).toEqual({ added: 1, removed: 1 });
+    expect(parseDiffstat({ text: 'Lines changed: 247 additions & 18 deletions' })).toEqual({ added: 247, removed: 18 });
+  });
+
+  it('parses combined +N -N visible-span text', () => {
+    // From content.js: passes "+5 -3" combining fgColor-success/danger spans
+    expect(parseDiffstat({ text: '+5 -3' })).toEqual({ added: 5, removed: 3 });
+    expect(parseDiffstat({ text: '+1 -1' })).toEqual({ added: 1, removed: 1 });
+  });
 });
 
 describe('getPRKeyFromPath', () => {
