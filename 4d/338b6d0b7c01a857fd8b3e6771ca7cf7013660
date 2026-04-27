@@ -1,0 +1,26 @@
+tests/fixtures/pr-page.html
+  0166c249a471ff74 11,16-30,36-50,57,79,91,103
+tests/e2e/extension.spec.js
+  0166c249a471ff74 235-288
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "4d338b6d0b7c01a857fd8b3e6771ca7cf7013660",
+  "prompts": {
+    "0166c249a471ff74": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca31d008-0474-49de-8be8-736454ecac34",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "sudo-vaibhav",
+      "messages": [],
+      "total_additions": 89,
+      "total_deletions": 0,
+      "accepted_lines": 122,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/1ee2eea5ef03f76b605077e7634cf384efb0883753d6d94c9790f839065d8f3a"
+    }
+  }
+}
