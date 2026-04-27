@@ -61,6 +61,30 @@
     ) || el;
   }
 
+  // Collect every file in the PR from GitHub's native left tree, regardless of
+  // whether the diff card has been lazy-rendered yet. Each leaf treeitem has
+  // an <a href="#diff-..."> anchor; walk up to the nearest ancestor [id] to
+  // build a full path.
+  function collectFromTree() {
+    const out = [];
+    const leafSel = '[role="treeitem"][class*="DiffFileTree-module__file-tree-row"], ' +
+                    '[role="treeitem"].PRIVATE_TreeView-item.DiffFileTree-module__file-tree-row';
+    const leaves = document.querySelectorAll(leafSel);
+    leaves.forEach(li => {
+      const link = li.querySelector('a[href^="#diff-"]');
+      const m = link?.getAttribute('href')?.match(/^#(diff-[a-f0-9]+)/);
+      if (!m) return;
+      const anchor = m[1];
+      const filename = (link.textContent || '').replace(/[\u200E\u200F]/g, '').trim();
+      // Walk up to the closest ancestor treeitem with an [id] (folder path).
+      let parent = li.parentElement?.closest('[role="treeitem"][id]');
+      const folder = parent?.id || '';
+      const path = folder ? `${folder}/${filename}` : filename;
+      out.push({ anchor, path, fromTree: true });
+    });
+    return out;
+  }
+
   function collectFiles() {
     const out = [];
     const seenCards = new Set();
@@ -155,7 +179,53 @@
         test: isTest(path)
       });
     }
+
+    // Merge in tree-only entries (files whose diff cards haven't lazy-loaded
+    // yet). These get filename + 0 stats; refreshFiles upgrades them with
+    // real data once their cards render.
+    const haveAnchor = new Set(out.map(f => f.anchor).filter(Boolean));
+    for (const t of collectFromTree()) {
+      if (haveAnchor.has(t.anchor)) continue;
+      out.push({
+        el: null,
+        path: t.path,
+        anchor: t.anchor,
+        added: 0,
+        removed: 0,
+        score: 0,
+        generated: isGenerated(t.path),
+        test: isTest(t.path),
+        fromTree: true
+      });
+    }
     return out;
+  }
+
+  // For files whose diff cards are rendered, read GitHub's native "Viewed"
+  // button state and seed our approved set with anchors that were already
+  // marked viewed before our extension ran.
+  function syncApprovedFromNative() {
+    let added = 0;
+    for (const f of state.files) {
+      if (!f.el) continue;
+      if (state.approved.has(f.anchor)) continue;
+      const nativeBtn = f.el.querySelector(
+        'button[aria-label="Viewed"], button[aria-label="Mark as viewed"], button[aria-label*="viewed" i]'
+      );
+      const nativeInput = f.el.querySelector('input[name="viewed"], input.js-reviewed-checkbox');
+      const isOn =
+        (nativeBtn && nativeBtn.getAttribute('aria-pressed') === 'true') ||
+        (nativeInput && nativeInput.checked);
+      if (isOn) {
+        state.approved.add(f.anchor);
+        added++;
+      }
+    }
+    if (added > 0) {
+      saveApproved();
+      refreshInlineApproveButtons();
+    }
+    return added;
   }
 
   function ensureRoot() {
@@ -382,7 +452,13 @@
     const f = state.files[idx];
     try { if (f.anchor) history.replaceState(null, '', `#${f.anchor}`); } catch {}
     scrollLockUntil = Date.now() + 700;
-    f.el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (f.el) {
+      f.el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (f.anchor) {
+      // Tree-only entry — diff card not yet rendered. Hash navigation kicks
+      // GitHub's virtualized tree to scroll & lazy-render the target diff.
+      location.hash = f.anchor;
+    }
     renderList();
   }
 
@@ -449,6 +525,7 @@
 
   function injectInlineApproveButtons() {
     state.files.forEach((f, idx) => {
+      if (!f.el) return; // tree-only entry, no diff card rendered yet
       const header =
         f.el.querySelector('.file-header, .file-info') ||
         f.el.querySelector('[class*="DiffFileHeader-module__diff-file-header"]') ||
@@ -517,6 +594,7 @@
   function autoCollapseGenerated() {
     for (const f of state.files) {
       if (!f.generated) continue;
+      if (!f.el) continue; // tree-only; nothing to collapse yet
       const body =
         f.el.querySelector('.js-file-content, .Box-body') ||
         f.el.querySelector('[class*="DiffContent"], [class*="diff-table"]');
@@ -620,6 +698,7 @@
     await loadApproved();
     state.files = collectFiles();
     if (!state.files.length) return;
+    syncApprovedFromNative();
     ensureRoot();
     syncControlsToState();
     applyPushClass();
@@ -645,16 +724,19 @@
     if (!isFilesPage()) return;
     const fresh = collectFiles();
     if (fresh.length === 0) return;
-    if (fresh.length !== state.files.length) {
+
+    // Compare by anchor set + el-presence to detect both new files AND
+    // tree-only entries that just got their diff card rendered.
+    const renderedSig = (arr) =>
+      arr.map(f => f.anchor + (f.el ? '+' : '-')).sort().join('|');
+    if (renderedSig(fresh) !== renderedSig(state.files)) {
       state.files = fresh;
       ensureRoot();
       syncControlsToState();
+      syncApprovedFromNative();
       autoCollapseGenerated();
       renderList();
     }
-    // Always run inline-button injection — GitHub lazy-renders diff headers
-    // on scroll, so new headers may need buttons even when file count is
-    // unchanged. injectInlineApproveButtons dedupes via class check.
     injectInlineApproveButtons();
   }, 400);
 

@@ -71,7 +71,11 @@ test.describe('modern GitHub markup (PullRequestDiffsList)', () => {
   test('approval flow works on modern markup', async () => {
     const page = await gotoPR();
     const inline = page.locator('.prdp-inline-approve').first();
-    await inline.click();
+    // Idempotent: ensure approved state regardless of leftover storage from
+    // earlier tests in this suite (same fixture URL → same chrome.storage key).
+    if (!(await inline.evaluate(n => n.classList.contains('approved')))) {
+      await inline.click();
+    }
     await expect(inline).toHaveClass(/approved/);
     await expect(inline).toContainText('Approved');
   });

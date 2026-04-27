@@ -34,8 +34,12 @@
   <h1>Mock PR Files Changed</h1>
 
   <!-- Mock of GitHub's native left-side file tree (#pr-file-tree).
-       The extension's "Hide approved" toggle should also hide entries here
-       whose data-file-path matches an approved file. -->
+       Two structures coexist:
+       1. Legacy/synthetic rows with [data-file-path] for hide-approved tests
+       2. Modern Primer-React TreeView rows with anchor hrefs only — these
+          represent files whose diff cards haven't lazy-loaded yet. The
+          extension should still pick them up so the sidebar shows ALL files
+          in the PR, not just the rendered ones. -->
   <nav id="pr-file-tree" aria-label="Files changed">
     <ul role="tree">
       <li role="treeitem" data-prdp-test="native-tree-row">
@@ -49,6 +53,14 @@
       </li>
       <li role="treeitem" data-prdp-test="native-tree-row">
         <span data-file-path="README.md">README.md</span>
+      </li>
+      <!-- Folder containing a tree-only file (no diff card rendered) -->
+      <li role="treeitem" id="docs">
+        <ul role="group">
+          <li role="treeitem" class="PRIVATE_TreeView-item DiffFileTree-module__file-tree-row__PCB1B">
+            <a href="#diff-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee">CHANGELOG.md</a>
+          </li>
+        </ul>
       </li>
     </ul>
   </nav>
@@ -65,6 +77,21 @@
       if (!btn) return;
       const cur = btn.getAttribute('aria-pressed') === 'true';
       btn.setAttribute('aria-pressed', cur ? 'false' : 'true');
+    });
+
+    // Pre-press a native Viewed button on load when ?prepress=<anchor-prefix>
+    // is in the URL. Runs once DOM is ready (the buttons it targets are
+    // parsed later in the document). Tests verify the extension picks up
+    // already-viewed files into its `approved` set on init without breaking
+    // other tests that assume a clean 0/N start.
+    document.addEventListener('DOMContentLoaded', () => {
+      const preset = new URLSearchParams(location.search).get('prepress');
+      if (!preset) return;
+      document.querySelectorAll('button[aria-label="Viewed"]').forEach(btn => {
+        if ((btn.getAttribute('data-anchor') || '').startsWith(preset)) {
+          btn.setAttribute('aria-pressed', 'true');
+        }
+      });
     });
   </script>
 

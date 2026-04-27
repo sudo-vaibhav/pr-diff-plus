@@ -43,24 +43,25 @@ test.describe(`flat view`, () => {
   test('shows all files as flat list', async () => {
     const page = await freshPR();
     await setMode(page, 'flat');
-    await expect(page.locator('#prdp-list .prdp-item')).toHaveCount(4);
+    await expect(page.locator('#prdp-list .prdp-item')).toHaveCount(5);
   });
 
   test('progress reflects approved state', async () => {
     const page = await freshPR();
     await setMode(page, 'flat');
-    await expect(page.locator('.prdp-count')).toHaveText('0/4');
+    await expect(page.locator('.prdp-count')).toHaveText('0/5');
     await page.keyboard.press('a');
-    await expect(page.locator('.prdp-count')).toHaveText('1/4');
+    await expect(page.locator('.prdp-count')).toHaveText('1/5');
     await page.keyboard.press('a');
-    await expect(page.locator('.prdp-count')).toHaveText('0/4');
+    await expect(page.locator('.prdp-count')).toHaveText('0/5');
   });
 
   test('complexity scores correct', async () => {
     const page = await freshPR();
     await setMode(page, 'flat');
     const scores = await page.locator('#prdp-list .prdp-item .prdp-tag').allTextContents();
-    expect(scores).toEqual(['100', '16', '175', '2']);
+    // 4 rendered diff cards + 1 tree-only entry (CHANGELOG.md, score 0)
+    expect(scores).toEqual(['100', '16', '175', '2', '0']);
   });
 
   test('sort by complexity reorders', async () => {
@@ -104,9 +105,10 @@ test.describe(`tree view`, () => {
   test('clicking a folder collapses it', async () => {
     const page = await freshPR();
     await setMode(page, 'tree');
-    expect(await page.locator('#prdp-list .prdp-item').count()).toBe(4);
+    expect(await page.locator('#prdp-list .prdp-item').count()).toBe(5);
     await page.locator('#prdp-list .prdp-dir', { hasText: 'src' }).click();
-    expect(await page.locator('#prdp-list .prdp-item').count()).toBe(2);
+    // src/ holds 2 of 5 files; collapsing leaves 3 visible
+    expect(await page.locator('#prdp-list .prdp-item').count()).toBe(3);
   });
 
   test('directory shows approved/total count', async () => {
@@ -128,23 +130,23 @@ test.describe(`approval`, () => {
     await expect(row).not.toHaveClass(/approved/);
     await row.locator('.prdp-check').click();
     await expect(row).toHaveClass(/approved/);
-    await expect(page.locator('.prdp-count')).toHaveText('1/4');
+    await expect(page.locator('.prdp-count')).toHaveText('1/5');
   });
 
   test('a key toggles approval for active file', async () => {
     const page = await freshPR();
     await page.locator('body').click({ position: { x: 50, y: 200 } });
     await page.keyboard.press('a');
-    await expect(page.locator('.prdp-count')).toHaveText('1/4');
+    await expect(page.locator('.prdp-count')).toHaveText('1/5');
   });
 
   test('hide-approved checkbox hides marked files', async () => {
     const page = await freshPR();
     await page.locator('body').click({ position: { x: 50, y: 200 } });
     await page.keyboard.press('a');
-    await expect(page.locator('.prdp-count')).toHaveText('1/4');
+    await expect(page.locator('.prdp-count')).toHaveText('1/5');
     await page.locator('#prdp-hide-approved').check();
-    await expect(page.locator('#prdp-list .prdp-item')).toHaveCount(3);
+    await expect(page.locator('#prdp-list .prdp-item')).toHaveCount(4);
   });
 
   test('approval persists across reload', async () => {
@@ -157,12 +159,12 @@ test.describe(`approval`, () => {
     await page.waitForTimeout(250);
     await page.locator('body').click({ position: { x: 50, y: 200 } });
     await page.keyboard.press('a');
-    await expect(page.locator('.prdp-count')).toHaveText('1/4');
+    await expect(page.locator('.prdp-count')).toHaveText('1/5');
 
     await page.reload();
     await page.waitForSelector('#prdp-root');
     await page.waitForTimeout(250);
-    await expect(page.locator('.prdp-count')).toHaveText('1/4');
+    await expect(page.locator('.prdp-count')).toHaveText('1/5');
   });
 });
 
@@ -203,9 +205,11 @@ test.describe(`keyboard nav`, () => {
 });
 
 test.describe(`inline approve button`, () => {
-  test('renders an approve button on every diff', async () => {
+  test('renders an approve button on every rendered diff card', async () => {
     const page = await freshPR();
     const inline = page.locator('.prdp-inline-approve');
+    // 4 rendered diff cards; CHANGELOG.md is tree-only — its button appears
+    // only when GitHub lazy-renders the card.
     await expect(inline).toHaveCount(4);
     for (let i = 0; i < 4; i++) {
       await expect(inline.nth(i)).toContainText('Approve');
@@ -218,7 +222,7 @@ test.describe(`inline approve button`, () => {
     await firstInline.click();
     await expect(firstInline).toHaveClass(/approved/);
     await expect(firstInline).toContainText('Approved');
-    await expect(page.locator('.prdp-count')).toHaveText('1/4');
+    await expect(page.locator('.prdp-count')).toHaveText('1/5');
   });
 
   test('approving via sidebar updates inline button', async () => {
@@ -235,10 +239,8 @@ test.describe(`inline approve button`, () => {
 test.describe(`native left-tree hide`, () => {
   test('hide-approved hides matching entries in #pr-file-tree', async () => {
     const page = await freshPR();
-    const treeRows = page.locator('#pr-file-tree [role="treeitem"]');
-    // 4 native rows initially
+    const treeRows = page.locator('#pr-file-tree [role="treeitem"][data-prdp-test="native-tree-row"]');
     await expect(treeRows).toHaveCount(4);
-    await expect(treeRows).toBeVisible({ timeout: 1000 }).catch(() => {});
 
     // Approve src/feature.ts via inline button
     await page.locator('.prdp-inline-approve[data-anchor^="diff-aaaa"]').click();
@@ -246,8 +248,7 @@ test.describe(`native left-tree hide`, () => {
     // Hide approved
     await page.locator('#prdp-hide-approved').check();
 
-    // Visible count should now be 3 (feature.ts hidden in native tree)
-    const visible = page.locator('#pr-file-tree [role="treeitem"]:not([data-prdp-hidden])');
+    const visible = page.locator('#pr-file-tree [role="treeitem"][data-prdp-test="native-tree-row"]:not([data-prdp-hidden])');
     await expect(visible).toHaveCount(3);
 
     const visiblePaths = await visible.locator('[data-file-path]').evaluateAll(els =>
@@ -261,13 +262,13 @@ test.describe(`native left-tree hide`, () => {
     await page.locator('.prdp-inline-approve[data-anchor^="diff-aaaa"]').click();
     await page.locator('#prdp-hide-approved').check();
     await expect(
-      page.locator('#pr-file-tree [role="treeitem"]:not([data-prdp-hidden])')
+      page.locator('#pr-file-tree [role="treeitem"][data-prdp-test="native-tree-row"]:not([data-prdp-hidden])')
     ).toHaveCount(3);
 
     await page.locator('#prdp-hide-approved').uncheck();
 
     await expect(
-      page.locator('#pr-file-tree [role="treeitem"]:not([data-prdp-hidden])')
+      page.locator('#pr-file-tree [role="treeitem"][data-prdp-test="native-tree-row"]:not([data-prdp-hidden])')
     ).toHaveCount(4);
   });
 
@@ -277,13 +278,13 @@ test.describe(`native left-tree hide`, () => {
     await inline.click();
     await page.locator('#prdp-hide-approved').check();
     await expect(
-      page.locator('#pr-file-tree [role="treeitem"]:not([data-prdp-hidden])')
+      page.locator('#pr-file-tree [role="treeitem"][data-prdp-test="native-tree-row"]:not([data-prdp-hidden])')
     ).toHaveCount(3);
 
     await inline.click(); // un-approve
 
     await expect(
-      page.locator('#pr-file-tree [role="treeitem"]:not([data-prdp-hidden])')
+      page.locator('#pr-file-tree [role="treeitem"][data-prdp-test="native-tree-row"]:not([data-prdp-hidden])')
     ).toHaveCount(4);
   });
 });
@@ -339,6 +340,65 @@ test.describe(`native Viewed mirror`, () => {
     clickCount = await page.evaluate(() => window.__nativeClicks || 0);
     expect(clickCount).toBe(0);
     await expect(native).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+test.describe(`tree-only files (lazy-loaded diff cards)`, () => {
+  test('files visible only in native left tree still appear in our sidebar', async () => {
+    const page = await freshPR();
+    const paths = await page.locator('#prdp-list .prdp-item .prdp-path').allTextContents();
+    expect(paths.some(p => p.includes('CHANGELOG.md'))).toBe(true);
+  });
+
+  test('tree-only entry has no inline Approve button (no diff card to attach to)', async () => {
+    const page = await freshPR();
+    const inline = page.locator('.prdp-inline-approve');
+    // 4 rendered cards = 4 inline buttons; the 5th (CHANGELOG) has no card yet
+    await expect(inline).toHaveCount(4);
+  });
+
+  test('tree-only entry can still be approved via sidebar checkbox', async () => {
+    const page = await freshPR();
+    await expect(page.locator('.prdp-count')).toHaveText('0/5');
+
+    const row = page.locator('#prdp-list .prdp-item', {
+      has: page.locator('.prdp-path', { hasText: 'CHANGELOG.md' })
+    }).first();
+    await row.locator('.prdp-check').click();
+
+    await expect(page.locator('.prdp-count')).toHaveText('1/5');
+    await expect(row).toHaveClass(/approved/);
+  });
+});
+
+test.describe(`initial sync from native Viewed`, () => {
+  test('files already marked viewed by GitHub get auto-approved on init', async () => {
+    const n = ++testCounter;
+    const url = `${env.baseURL}/vaatun/vantage/pull/${1000 + n}/files?prepress=diff-aaaa`;
+    const page = env.context.pages()[0];
+    await page.goto(url);
+    await page.waitForSelector('#prdp-root');
+    await page.waitForTimeout(400);
+
+    await expect(page.locator('.prdp-count')).toHaveText('1/5');
+    const inline = page.locator('.prdp-inline-approve[data-anchor^="diff-aaaa"]');
+    await expect(inline).toHaveClass(/approved/);
+  });
+
+  test('native sync persists across reload', async () => {
+    const n = ++testCounter;
+    const url = `${env.baseURL}/vaatun/vantage/pull/${1000 + n}/files?prepress=diff-bbbb`;
+    const page = env.context.pages()[0];
+    await page.goto(url);
+    await page.waitForSelector('#prdp-root');
+    await page.waitForTimeout(400);
+    await expect(page.locator('.prdp-count')).toHaveText('1/5');
+
+    // Reload without prepress query — approval persists from chrome.storage
+    await page.goto(url.replace(/\?prepress=.+$/, ''));
+    await page.waitForSelector('#prdp-root');
+    await page.waitForTimeout(400);
+    await expect(page.locator('.prdp-count')).toHaveText('1/5');
   });
 });
 
