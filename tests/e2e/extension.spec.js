@@ -232,6 +232,60 @@ test.describe(`inline approve button`, () => {
   });
 });
 
+test.describe(`native Viewed mirror`, () => {
+  test('approving via inline button flips native aria-pressed to true', async () => {
+    const page = await freshPR();
+    const native = page.locator('button[aria-label="Viewed"][data-anchor="diff-aaaa"]');
+    await expect(native).toHaveAttribute('aria-pressed', 'false');
+
+    await page.locator('.prdp-inline-approve[data-anchor^="diff-aaaa"]').click();
+
+    await expect(native).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('approving via sidebar checkbox also flips native aria-pressed', async () => {
+    const page = await freshPR();
+    const native = page.locator('button[aria-label="Viewed"][data-anchor="diff-bbbb"]');
+    await expect(native).toHaveAttribute('aria-pressed', 'false');
+
+    const row = page.locator('#prdp-list .prdp-item', {
+      has: page.locator('.prdp-path', { hasText: 'feature.test.ts' })
+    }).first();
+    await row.locator('.prdp-check').click();
+
+    await expect(native).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('un-approving flips native aria-pressed back to false', async () => {
+    const page = await freshPR();
+    const inline = page.locator('.prdp-inline-approve[data-anchor^="diff-cccc"]');
+    const native = page.locator('button[aria-label="Viewed"][data-anchor="diff-cccc"]');
+
+    await inline.click();
+    await expect(native).toHaveAttribute('aria-pressed', 'true');
+    await inline.click();
+    await expect(native).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('does not click native if aria-pressed already matches desired state', async () => {
+    const page = await freshPR();
+    const native = page.locator('button[aria-label="Viewed"][data-anchor="diff-dddd"]');
+    // Pre-set native to "true" so it already matches what we'll request
+    await native.evaluate(b => b.setAttribute('aria-pressed', 'true'));
+
+    let clickCount = 0;
+    await native.evaluate(b => {
+      b.addEventListener('click', () => { window.__nativeClicks = (window.__nativeClicks || 0) + 1; });
+    });
+
+    // Approve via inline — extension should NOT click native (already on)
+    await page.locator('.prdp-inline-approve[data-anchor^="diff-dddd"]').click();
+    clickCount = await page.evaluate(() => window.__nativeClicks || 0);
+    expect(clickCount).toBe(0);
+    await expect(native).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
 test.describe(`auto-collapse`, () => {
   test('hides yarn.lock body and shows badge', async () => {
     const page = await freshPR();

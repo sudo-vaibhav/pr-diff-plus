@@ -8,14 +8,45 @@
     body { font-family: system-ui, sans-serif; margin: 0; padding: 64px 0 0; }
     .file { border: 1px solid #d1d9e0; border-radius: 6px; margin: 16px 16px 24px; min-height: 600px; padding: 12px; }
     .file-info a { color: #0969da; text-decoration: none; font-family: ui-monospace, monospace; }
+    .file-header { display: flex; align-items: center; gap: 12px; }
     .diffstat { font-family: ui-monospace, monospace; font-size: 12px; }
     .diff-table { width: 100%; }
     .js-file-content { padding: 8px; background: #f6f8fa; }
     pre { margin: 0; }
+    .native-viewed-btn {
+      margin-left: auto;
+      padding: 3px 10px;
+      font-size: 12px;
+      border: 1px solid #d1d9e0;
+      border-radius: 6px;
+      background: #f6f8fa;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .native-viewed-btn[aria-pressed="true"] {
+      background: #2da44e;
+      color: white;
+      border-color: #2c974b;
+    }
   </style>
 </head>
 <body>
   <h1>Mock PR Files Changed</h1>
+
+  <!--
+    Each file mimics the Primer-React modern PR diff structure where
+    relevant: <button aria-label="Viewed" aria-pressed="..."> as the
+    native viewed toggle. Click handler flips aria-pressed so the
+    extension's mirror logic can be tested round-trip.
+  -->
+  <script>
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('button[aria-label="Viewed"]');
+      if (!btn) return;
+      const cur = btn.getAttribute('aria-pressed') === 'true';
+      btn.setAttribute('aria-pressed', cur ? 'false' : 'true');
+    });
+  </script>
 
   <copilot-diff-entry>
     <div id="diff-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -23,6 +54,7 @@
       <div class="file-header">
         <div class="file-info"><a title="src/feature.ts" href="#diff-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa">src/feature.ts</a></div>
         <span class="diffstat" aria-label="80 additions, 20 deletions">+80 −20</span>
+        <button type="button" class="native-viewed-btn" aria-label="Viewed" aria-pressed="false" data-anchor="diff-aaaa">Viewed</button>
       </div>
       <div class="js-file-content">
         <table class="diff-table">
@@ -44,6 +76,7 @@
       <div class="file-header">
         <div class="file-info"><a title="src/feature.test.ts" href="#diff-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb">src/feature.test.ts</a></div>
         <span class="diffstat" aria-label="40 additions, 0 deletions">+40 −0</span>
+        <button type="button" class="native-viewed-btn" aria-label="Viewed" aria-pressed="false" data-anchor="diff-bbbb">Viewed</button>
       </div>
       <div class="js-file-content"><pre>// tests</pre></div>
     </div>
@@ -55,6 +88,7 @@
       <div class="file-header">
         <div class="file-info"><a title="yarn.lock" href="#diff-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc">yarn.lock</a></div>
         <span class="diffstat" aria-label="2000 additions, 1500 deletions">+2000 −1500</span>
+        <button type="button" class="native-viewed-btn" aria-label="Viewed" aria-pressed="false" data-anchor="diff-cccc">Viewed</button>
       </div>
       <div class="js-file-content"><pre>// huge lockfile diff</pre></div>
     </div>
@@ -66,6 +100,7 @@
       <div class="file-header">
         <div class="file-info"><a title="README.md" href="#diff-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd">README.md</a></div>
         <span class="diffstat" aria-label="3 additions, 1 deletion">+3 −1</span>
+        <button type="button" class="native-viewed-btn" aria-label="Viewed" aria-pressed="false" data-anchor="diff-dddd">Viewed</button>
       </div>
       <div class="js-file-content"><pre># readme</pre></div>
     </div>
