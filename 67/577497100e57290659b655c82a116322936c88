@@ -1,0 +1,30 @@
+extension/src/content.js
+  0166c249a471ff74 64-87,182-200,204-230,455-461,528,597,701,727-732,736
+tests/fixtures/pr-page.html
+  0166c249a471ff74 37-42,57-64,81-95
+tests/e2e/extension.spec.js
+  0166c249a471ff74 46,52,54,56,63-64,108,110-111,133,140,147,149,162,167,208,211-212,225,242,251,265,271,281,287,346-404
+tests/e2e/realgithub-modern.spec.js
+  0166c249a471ff74 74-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "67577497100e57290659b655c82a116322936c88",
+  "prompts": {
+    "0166c249a471ff74": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca31d008-0474-49de-8be8-736454ecac34",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "sudo-vaibhav",
+      "messages": [],
+      "total_additions": 216,
+      "total_deletions": 51,
+      "accepted_lines": 234,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/7be1bc2cb93cdb1abd02306fb4b0ff1b9a801b2eeca29afc51b154024e1edee2"
+    }
+  }
+}
