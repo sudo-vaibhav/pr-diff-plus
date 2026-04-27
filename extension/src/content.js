@@ -293,6 +293,7 @@
     if (state.viewMode === 'flat') renderFlat(list);
     else renderTree(list);
     renderProgress();
+    applyNativeTreeHide();
   }
 
   function renderFlat(list) {
@@ -479,6 +480,37 @@
       btn.classList.toggle('approved', isApproved);
       btn.querySelector('.prdp-inline-label').textContent = isApproved ? 'Approved' : 'Approve';
       btn.setAttribute('aria-pressed', String(isApproved));
+    });
+  }
+
+  // Hide GitHub's native left-side file tree entries for files we've marked
+  // approved (when state.hideApproved is on). Modern PR UI uses #pr-file-tree
+  // with [role="treeitem"] descendants. Path is on inner [data-file-path].
+  function applyNativeTreeHide() {
+    const approvedPaths = new Set(
+      state.files
+        .filter(f => state.approved.has(f.anchor))
+        .map(f => f.path)
+    );
+    const tree =
+      document.querySelector('#pr-file-tree') ||
+      document.querySelector('[aria-label*="Files changed" i] [role="tree"]') ||
+      document.querySelector('file-tree');
+    if (!tree) return;
+
+    tree.querySelectorAll('[role="treeitem"]').forEach(item => {
+      const pathEl = item.querySelector('[data-file-path]') ||
+                     (item.hasAttribute('data-file-path') ? item : null);
+      if (!pathEl) return;
+      const path = pathEl.getAttribute('data-file-path');
+      const shouldHide = state.hideApproved && approvedPaths.has(path);
+      if (shouldHide) {
+        item.setAttribute('data-prdp-hidden', '1');
+        item.style.display = 'none';
+      } else if (item.hasAttribute('data-prdp-hidden')) {
+        item.removeAttribute('data-prdp-hidden');
+        item.style.display = '';
+      }
     });
   }
 

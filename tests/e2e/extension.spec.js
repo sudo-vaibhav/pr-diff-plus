@@ -232,6 +232,62 @@ test.describe(`inline approve button`, () => {
   });
 });
 
+test.describe(`native left-tree hide`, () => {
+  test('hide-approved hides matching entries in #pr-file-tree', async () => {
+    const page = await freshPR();
+    const treeRows = page.locator('#pr-file-tree [role="treeitem"]');
+    // 4 native rows initially
+    await expect(treeRows).toHaveCount(4);
+    await expect(treeRows).toBeVisible({ timeout: 1000 }).catch(() => {});
+
+    // Approve src/feature.ts via inline button
+    await page.locator('.prdp-inline-approve[data-anchor^="diff-aaaa"]').click();
+
+    // Hide approved
+    await page.locator('#prdp-hide-approved').check();
+
+    // Visible count should now be 3 (feature.ts hidden in native tree)
+    const visible = page.locator('#pr-file-tree [role="treeitem"]:not([data-prdp-hidden])');
+    await expect(visible).toHaveCount(3);
+
+    const visiblePaths = await visible.locator('[data-file-path]').evaluateAll(els =>
+      els.map(e => e.getAttribute('data-file-path'))
+    );
+    expect(visiblePaths).not.toContain('src/feature.ts');
+  });
+
+  test('toggling hide-approved off restores native tree entries', async () => {
+    const page = await freshPR();
+    await page.locator('.prdp-inline-approve[data-anchor^="diff-aaaa"]').click();
+    await page.locator('#prdp-hide-approved').check();
+    await expect(
+      page.locator('#pr-file-tree [role="treeitem"]:not([data-prdp-hidden])')
+    ).toHaveCount(3);
+
+    await page.locator('#prdp-hide-approved').uncheck();
+
+    await expect(
+      page.locator('#pr-file-tree [role="treeitem"]:not([data-prdp-hidden])')
+    ).toHaveCount(4);
+  });
+
+  test('un-approving a file restores it to native tree even with hide-approved on', async () => {
+    const page = await freshPR();
+    const inline = page.locator('.prdp-inline-approve[data-anchor^="diff-cccc"]');
+    await inline.click();
+    await page.locator('#prdp-hide-approved').check();
+    await expect(
+      page.locator('#pr-file-tree [role="treeitem"]:not([data-prdp-hidden])')
+    ).toHaveCount(3);
+
+    await inline.click(); // un-approve
+
+    await expect(
+      page.locator('#pr-file-tree [role="treeitem"]:not([data-prdp-hidden])')
+    ).toHaveCount(4);
+  });
+});
+
 test.describe(`native Viewed mirror`, () => {
   test('approving via inline button flips native aria-pressed to true', async () => {
     const page = await freshPR();

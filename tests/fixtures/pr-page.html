@@ -33,6 +33,26 @@
 <body>
   <h1>Mock PR Files Changed</h1>
 
+  <!-- Mock of GitHub's native left-side file tree (#pr-file-tree).
+       The extension's "Hide approved" toggle should also hide entries here
+       whose data-file-path matches an approved file. -->
+  <nav id="pr-file-tree" aria-label="Files changed">
+    <ul role="tree">
+      <li role="treeitem" data-prdp-test="native-tree-row">
+        <span data-file-path="src/feature.ts">src/feature.ts</span>
+      </li>
+      <li role="treeitem" data-prdp-test="native-tree-row">
+        <span data-file-path="src/feature.test.ts">src/feature.test.ts</span>
+      </li>
+      <li role="treeitem" data-prdp-test="native-tree-row">
+        <span data-file-path="yarn.lock">yarn.lock</span>
+      </li>
+      <li role="treeitem" data-prdp-test="native-tree-row">
+        <span data-file-path="README.md">README.md</span>
+      </li>
+    </ul>
+  </nav>
+
   <!--
     Each file mimics the Primer-React modern PR diff structure where
     relevant: <button aria-label="Viewed" aria-pressed="..."> as the
